@@ -32,13 +32,7 @@ namespace IntegracaoMeusPedidos
             string apiPath = t.Path() + "/" + id;
             HttpWebRequest req = CreateHttpWebRequest(apiPath, "PUT");
 
-            Stream stream = req.GetRequestStream();
-            string json = new JavaScriptSerializer().Serialize(anonymousEntity);
-            byte[] bytes = Encoding.UTF8.GetBytes(json);
-            stream.Write(bytes, 0, bytes.Length);
-            stream.Close();
-            req.GetResponse();
-            req.Abort();
+            SendRequest(anonymousEntity, req);
             return null;
         }
 
@@ -47,14 +41,24 @@ namespace IntegracaoMeusPedidos
             T t = new T();
             HttpWebRequest req = CreateHttpWebRequest(t.Path(), "POST");
 
-            Stream stream = req.GetRequestStream();
-            string json = new JavaScriptSerializer().Serialize(anonymousEntity);
-            byte[] bytes = Encoding.UTF8.GetBytes(json);
-            stream.Write(bytes, 0, bytes.Length);
-            stream.Close();
-            req.GetResponse();
-            req.Abort();
+            SendRequest(anonymousEntity, req);
             return null;
+        }
+
+        public T Get<T>(int id) where T : IntegracaoMPType<T>, new()
+        {
+            T t = new T();
+            string apiPath = t.Path() + "/" + id;
+            HttpWebRequest req = CreateHttpWebRequest(apiPath);
+
+            WebResponse response = req.GetResponse();
+            Stream receiveStream = response.GetResponseStream();
+            StreamReader readStream = new StreamReader(receiveStream, Encoding.UTF8);
+
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+            var x = serializer.Deserialize<dynamic>(readStream.ReadToEnd());
+
+            return t.ConvertJson(x);
         }
 
         public List<T> GetAll<T>(DateTime ultimaSincronizacao) where T : IntegracaoMPType<T>, new()
@@ -68,12 +72,11 @@ namespace IntegracaoMeusPedidos
 
             List<T> list = new List<T>();
             JavaScriptSerializer serializer = new JavaScriptSerializer();
-            List<dynamic> list1 = serializer.Deserialize<List<dynamic>>(readStream.ReadToEnd());
+            List<dynamic> anonymousList = serializer.Deserialize<List<dynamic>>(readStream.ReadToEnd());
 
-            foreach (var obj in list1)
+            foreach (var obj in anonymousList)
             {
-                T newT = t.ConvertJson(obj);
-                list.Add(newT);
+                list.Add(t.ConvertJson(obj));
             }
 
             return list;
@@ -88,6 +91,17 @@ namespace IntegracaoMeusPedidos
             req.Headers.Add("ApplicationToken", this.ApplicationToken);
             req.Headers.Add("CompanyToken", this.CompanyToken);
             return req;
+        }
+
+        private static void SendRequest<T>(T anonymousEntity, HttpWebRequest req)
+        {
+            Stream stream = req.GetRequestStream();
+            string json = new JavaScriptSerializer().Serialize(anonymousEntity);
+            byte[] bytes = Encoding.UTF8.GetBytes(json);
+            stream.Write(bytes, 0, bytes.Length);
+            stream.Close();
+            req.GetResponse();
+            req.Abort();
         }
     }
 }
