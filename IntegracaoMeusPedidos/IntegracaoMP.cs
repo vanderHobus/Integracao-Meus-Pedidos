@@ -42,6 +42,11 @@ namespace IntegracaoMeusPedidos
             HttpWebRequest req = CreateHttpWebRequest(t.Path(), "POST");
 
             SendRequest(anonymousEntity, req);
+
+            WebResponse response = req.GetResponse();
+            int MeusPedidosID = 0;
+            Int32.TryParse(response.Headers.Get("MeusPedidosID"), out MeusPedidosID);
+
             return null;
         }
 
@@ -95,13 +100,25 @@ namespace IntegracaoMeusPedidos
 
         private static void SendRequest<T>(T anonymousEntity, HttpWebRequest req)
         {
-            Stream stream = req.GetRequestStream();
-            string json = new JavaScriptSerializer().Serialize(anonymousEntity);
-            byte[] bytes = Encoding.UTF8.GetBytes(json);
-            stream.Write(bytes, 0, bytes.Length);
-            stream.Close();
-            req.GetResponse();
-            req.Abort();
+            try
+            {
+                Stream stream = req.GetRequestStream();
+                string json = new JavaScriptSerializer().Serialize(anonymousEntity);
+                byte[] bytes = Encoding.UTF8.GetBytes(json);
+                stream.Write(bytes, 0, bytes.Length);
+                stream.Close();
+                req.GetResponse();
+                req.Abort();
+            }
+            catch (WebException we)
+            {
+                var resp = new StreamReader(we.Response.GetResponseStream()).ReadToEnd();
+                MensagemMP mensagem = new JavaScriptSerializer().Deserialize<MensagemMP>(resp);
+                if (we.Response != null && ((HttpWebResponse)we.Response).StatusCode == HttpStatusCode.PreconditionFailed)
+                {
+
+                }
+            }
         }
     }
 }

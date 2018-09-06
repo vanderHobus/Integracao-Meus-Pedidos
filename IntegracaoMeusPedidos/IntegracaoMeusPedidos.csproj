@@ -42,6 +42,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Entities\IntegracaoMPType.cs" />
+    <Compile Include="Entities\MensagemMP.cs" />
     <Compile Include="Entities\ProdutoMP.cs" />
     <Compile Include="Entities\SegmentoMP.cs" />
     <Compile Include="IntegracaoMP.cs" />
