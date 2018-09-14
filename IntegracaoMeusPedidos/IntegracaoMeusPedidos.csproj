@@ -44,7 +44,9 @@
     <Compile Include="Entities\IntegracaoMPType.cs" />
     <Compile Include="Entities\MensagemMP.cs" />
     <Compile Include="Entities\ProdutoMP.cs" />
+    <Compile Include="Entities\RetornoMP.cs" />
     <Compile Include="Entities\SegmentoMP.cs" />
+    <Compile Include="Entities\ThrottlingMP.cs" />
     <Compile Include="IntegracaoMP.cs" />
   </ItemGroup>
   <ItemGroup>

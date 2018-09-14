@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Web.Script.Serialization;
 
 namespace IntegracaoMeusPedidos.Entities
 {
@@ -13,13 +10,10 @@ namespace IntegracaoMeusPedidos.Entities
 
         internal override string Path() { return "produtos"; }
 
-        internal override ProdutoMP ConvertJson(dynamic obj)
+        internal override ProdutoMP ConvertJson(object obj)
         {
-            ProdutoMP p = new ProdutoMP();
-            p.ID = obj["id"];
-            p.Codigo = obj["codigo"];
-            p.Nome = obj["nome"];
-            return p;
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+            return serializer.ConvertToType<ProdutoMP>(obj);
         }
     }
 }

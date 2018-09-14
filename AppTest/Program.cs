@@ -2,6 +2,9 @@
 using IntegracaoMeusPedidos.Entities;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Web.Script.Serialization;
 
 namespace AppTest
 {
@@ -11,39 +14,54 @@ namespace AppTest
         {
             IntegracaoMP mp = new IntegracaoMP("COMPANY_TOKEN", "APPLICATION_TOKEN", true);
             DateTime ultimaSincronizacao = DateTime.Now.AddDays(-10);
+            List<SegmentoMP> segmentos = new List<SegmentoMP>();
+            bool excluir = false;
+            bool inserir = false;
+            bool buscar = true;
 
             //var regPorId = mp.Get<SegmentoMP>(1330);
 
-            List<SegmentoMP> segmentos = mp.GetAll<SegmentoMP>(ultimaSincronizacao);
-
-            foreach (var s in segmentos)
+            if (excluir)
             {
-                s.excluido = true;
-                Console.WriteLine("Removendo registro [" + s.nome + "]");
-                //var xxxxxxxxzx = mp.Update<SegmentoMP>(s, s.id);
+                segmentos = mp.GetAll<SegmentoMP>(ultimaSincronizacao);
+
+                foreach (var s in segmentos)
+                {
+                    s.excluido = true;
+                    Console.WriteLine("Removendo registro [" + s.nome + "]");
+                    mp.Update(s, s.id);
+                }
             }
 
-            //List<ProdutoMP> produtos = mp.GetAll<ProdutoMP>(ultimaSincronizacao);
-
-            //foreach (var p in produtos)
-            //{
-            //    // TODO: produtos
-            //}
-
-
-            segmentos.Clear();
-
-            for (int i = 0; i < 1; i++)
-
+            if (inserir)
             {
-                segmentos.Add(new SegmentoMP(0, "", false));
+                segmentos.Clear();
+
+                for (int i = 0; i < 800; i++)
+                {
+                    segmentos.Add(new SegmentoMP(0, "Dimensão " + i, false));
+                }
+
+                foreach (var segmento in segmentos)
+                {
+                    Console.WriteLine("Inserindo registro [" + segmento.nome + "]");
+                    SegmentoMP segmentos2 = mp.Insert(segmento);
+                }
             }
 
-            foreach (var segmento in segmentos)
+            if (buscar)
             {
-                Console.WriteLine("Inserindo registro [" + segmento.nome + "]");
-                var segmentos2 = mp.Insert<SegmentoMP>(segmento);
+                segmentos.Clear();
+                segmentos = mp.GetAll<SegmentoMP>(ultimaSincronizacao);
+
+                foreach (var s in segmentos)
+                {
+                    SegmentoMP segmento = mp.Get<SegmentoMP>(s.id);
+                    JavaScriptSerializer serializer = new JavaScriptSerializer();
+                    Console.WriteLine(DateTime.Now.ToLongTimeString() + " - " + segmento.nome.ToString());
+                }
             }
+
             Console.ReadKey();
         }
     }

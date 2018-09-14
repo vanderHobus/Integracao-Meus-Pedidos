@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Web.Script.Serialization;
 
 namespace IntegracaoMeusPedidos
@@ -26,14 +27,13 @@ namespace IntegracaoMeusPedidos
             return (Sandbox ? "https://sandbox.meuspedidos.com.br/api/v1/" : "https://integracao.meuspedidos.com.br/api/v1/") + path;
         }
 
-        public T Update<T>(T anonymousEntity, int id) where T : IntegracaoMPType<T>, new()
+        public bool Update<T>(T anonymousEntity, int id) where T : IntegracaoMPType<T>, new()
         {
             T t = new T();
             string apiPath = t.Path() + "/" + id;
             HttpWebRequest req = CreateHttpWebRequest(apiPath, "PUT");
 
-            SendRequest(anonymousEntity, req);
-            return null;
+            return SendRequest(anonymousEntity, req);
         }
 
         public T Insert<T>(T anonymousEntity) where T : IntegracaoMPType<T>, new()
@@ -44,6 +44,7 @@ namespace IntegracaoMeusPedidos
             SendRequest(anonymousEntity, req);
 
             WebResponse response = req.GetResponse();
+
             int MeusPedidosID = 0;
             Int32.TryParse(response.Headers.Get("MeusPedidosID"), out MeusPedidosID);
 
@@ -52,36 +53,71 @@ namespace IntegracaoMeusPedidos
 
         public T Get<T>(int id) where T : IntegracaoMPType<T>, new()
         {
-            T t = new T();
-            string apiPath = t.Path() + "/" + id;
-            HttpWebRequest req = CreateHttpWebRequest(apiPath);
+            bool exit = false;
+            while (!exit)
+            {
+                try
+                {
+                    T t = new T();
+                    string apiPath = t.Path() + "/" + id;
+                    HttpWebRequest req = CreateHttpWebRequest(apiPath);
 
-            WebResponse response = req.GetResponse();
-            Stream receiveStream = response.GetResponseStream();
-            StreamReader readStream = new StreamReader(receiveStream, Encoding.UTF8);
+                    WebResponse response = req.GetResponse();
+                    Stream receiveStream = response.GetResponseStream();
+                    StreamReader readStream = new StreamReader(receiveStream, Encoding.UTF8);
 
-            JavaScriptSerializer serializer = new JavaScriptSerializer();
-            var x = serializer.Deserialize<dynamic>(readStream.ReadToEnd());
+                    JavaScriptSerializer serializer = new JavaScriptSerializer();
+                    var x = serializer.Deserialize<object>(readStream.ReadToEnd());
 
-            return t.ConvertJson(x);
+                    exit = true;
+
+                    return t.ConvertJson(x);
+                }
+                catch (WebException we)
+                {
+                    var resp = new StreamReader(we.Response.GetResponseStream()).ReadToEnd();
+
+                    if (we.Response != null && ((HttpWebResponse)we.Response).StatusCode == HttpStatusCode.PreconditionFailed
+                        || ((HttpWebResponse)we.Response).StatusCode == HttpStatusCode.NotFound)
+                    {
+                        MensagemMP mensagem = new JavaScriptSerializer().Deserialize<MensagemMP>(resp);
+                    }
+                    else if (we.Response != null && ((HttpWebResponse)we.Response).StatusCode.ToString().Contains("429"))
+                    {
+                        ThrottlingMP throttling = new JavaScriptSerializer().Deserialize<ThrottlingMP>(resp);
+                        Thread.Sleep(throttling.tempo_ate_permitir_novamente * 100);
+                    }
+                }
+            }
+            return null;
         }
 
         public List<T> GetAll<T>(DateTime ultimaSincronizacao) where T : IntegracaoMPType<T>, new()
         {
-            T t = new T();
-            HttpWebRequest req = CreateHttpWebRequest(t.Path());
-
-            WebResponse response = req.GetResponse();
-            Stream receiveStream = response.GetResponseStream();
-            StreamReader readStream = new StreamReader(receiveStream, Encoding.UTF8);
-
             List<T> list = new List<T>();
-            JavaScriptSerializer serializer = new JavaScriptSerializer();
-            List<dynamic> anonymousList = serializer.Deserialize<List<dynamic>>(readStream.ReadToEnd());
 
-            foreach (var obj in anonymousList)
+            while (true)
             {
-                list.Add(t.ConvertJson(obj));
+                T t = new T();
+                HttpWebRequest req = CreateHttpWebRequest(t.Path());
+
+                WebResponse response = req.GetResponse();
+                Stream receiveStream = response.GetResponseStream();
+                StreamReader readStream = new StreamReader(receiveStream, Encoding.UTF8);
+
+                JavaScriptSerializer serializer = new JavaScriptSerializer();
+                List<object> anonymousList = serializer.Deserialize<List<object>>(readStream.ReadToEnd());
+
+                foreach (var obj in anonymousList)
+                {
+                    list.Add(t.ConvertJson(obj));
+                }
+
+                int limitouRegistros;
+                int.TryParse(response.Headers.Get("MEUSPEDIDOS_LIMITOU_REGISTROS"), out limitouRegistros);
+
+                if (limitouRegistros == 0)
+                    break;
             }
 
             return list;
@@ -98,7 +134,7 @@ namespace IntegracaoMeusPedidos
             return req;
         }
 
-        private static void SendRequest<T>(T anonymousEntity, HttpWebRequest req)
+        private static bool SendRequest<T>(T anonymousEntity, HttpWebRequest req)
         {
             try
             {
@@ -109,6 +145,7 @@ namespace IntegracaoMeusPedidos
                 stream.Close();
                 req.GetResponse();
                 req.Abort();
+                return true;
             }
             catch (WebException we)
             {
@@ -118,6 +155,7 @@ namespace IntegracaoMeusPedidos
                 {
 
                 }
+                return false;
             }
         }
     }

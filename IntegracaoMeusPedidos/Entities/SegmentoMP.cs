@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Web.Script.Serialization;
 
 namespace IntegracaoMeusPedidos.Entities
 {
@@ -31,15 +32,10 @@ namespace IntegracaoMeusPedidos.Entities
             this.excluido = excluido;
         }
 
-        internal override SegmentoMP ConvertJson(dynamic obj)
+        internal override SegmentoMP ConvertJson(object obj)
         {
-            // TODO: Automatizar o cast do Obj com a Entity da classe. (Foreach nas properties)
-            SegmentoMP s = new SegmentoMP();
-            s.id = obj["id"];
-            s.nome = obj["nome"];
-            s.excluido = obj["excluido"];
-            s.ultima_alteracao = DateTime.Parse(obj["ultima_alteracao"]);
-            return s;
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+            return serializer.ConvertToType<SegmentoMP>(obj);
         }
     }
 }
